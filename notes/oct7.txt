@@ -1,0 +1,18 @@
+what's left to close the loop
+
+    submitting per-game frame vert data + ubo data
+
+    using the pipeline.
+        record command buffer
+            bind render pass
+            bind pipeline
+            bind descriptor sets
+            bind buffers
+            issue draw calls
+        submit command buffer
+        present
+
+    per-frame resources. e.g. need per-frame ubo. how to keep that behind the scenes?
+
+    ...
+

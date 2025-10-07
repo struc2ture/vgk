@@ -2,6 +2,7 @@
 
 #include <vulkan/vulkan.h>
 #include <GLFW/glfw3.h>
+#include <vulkan/vulkan_core.h>
 
 #include "common/common.hpp"
 
@@ -97,6 +98,7 @@ struct Vgk_DescriptorBinding
 {
     VkDescriptorType descriptor_type;
     u32 descriptor_count;
+    // TODO: Should I always do VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT for simplicity?
     VkShaderStageFlags stage_flags;
 };
 
@@ -196,6 +198,24 @@ VkDescriptorSetLayout vgk_create_descriptor_set_layout_from_spec(const Vgk_Descr
 
 Vgk_VertInputSpec vgk_make_vert_input_spec(size_t stride);
 void vgk_add_vert_attribute(Vgk_VertInputSpec *description, VkFormat format, size_t offset);
+
+Vgk_DescriptorSetSpec vgk_make_descriptor_set_spec();
+void vgk_add_descriptor_binding(Vgk_DescriptorSetSpec *spec, VkDescriptorType descriptor_type, u32 descriptor_count, VkShaderStageFlags stage_flags);
+
+Vgk_PipelineSpec vgk_make_pipeline_spec();
+void vgk_set_vert_shader_path(Vgk_PipelineSpec *spec, const char *path);
+void vgk_set_frag_shader_path(Vgk_PipelineSpec *spec, const char *path);
+void vgk_set_frame_count(Vgk_PipelineSpec *spec, u32 frame_count);
+void vgk_add_descriptor_set(Vgk_PipelineSpec *spec, const Vgk_DescriptorSetSpec *descriptor_set_spec);
+// void vgk_add_push_constant(Vgk_PipelineSpec *spec);
+void vgk_set_vert_input(Vgk_PipelineSpec *spec, const Vgk_VertInputSpec *vert_input);
+void vgk_set_viewport(Vgk_PipelineSpec *spec, VkViewport viewport);
+void vgk_set_scissor(Vgk_PipelineSpec *spec, VkRect2D scissor);
+void vgk_set_rasterization_state(Vgk_PipelineSpec *spec, VkPolygonMode polygon_mode, f32 line_width, VkCullModeFlags cull_mode, VkFrontFace front_face);
+void vgk_set_sample_count(Vgk_PipelineSpec *spec, VkSampleCountFlagBits sample_count);
+void vgk_set_enable_blending(Vgk_PipelineSpec *spec, bool enable);
+void vgk_set_enable_depth_testing(Vgk_PipelineSpec *spec, bool enable);
+void vgk_set_render_pass(Vgk_PipelineSpec *spec, VkRenderPass render_pass);
 
 Vgk_PipelineBundle vgk_create_pipeline_from_spec(const Vgk_PipelineSpec *description, VkDevice device);
 

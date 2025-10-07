@@ -34,56 +34,31 @@ int main()
 
     Vgk_DescriptorPoolBundle descriptor_pool_bundle = vgk_create_descriptor_pool_bundle(device);
 
-    Vgk_DescriptorSetSpec global_descriptor_set_description = {};
-    global_descriptor_set_description.bindings[0].descriptor_type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
-    global_descriptor_set_description.bindings[0].descriptor_count = 1;
-    global_descriptor_set_description.bindings[0].stage_flags = VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT;
-    global_descriptor_set_description.binding_count = 1;
-    Vgk_DescriptorSetBundle global_descriptor_set = vgk_create_descriptor_set_bundle_from_spec(&descriptor_pool_bundle, &global_descriptor_set_description, device);
-
-    Vgk_DescriptorSetSpec ui_descriptor_set_description = {};
-    Vgk_DescriptorBinding ui_descriptor_bindings[MAX_DESCRIPTOR_BINDINGS] = {};
-    ui_descriptor_set_description.bindings[0].descriptor_type = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
-    ui_descriptor_set_description.bindings[0].descriptor_count = 2;
-    ui_descriptor_set_description.bindings[0].stage_flags = VK_SHADER_STAGE_FRAGMENT_BIT;
-    ui_descriptor_set_description.binding_count = 1;
-    Vgk_DescriptorSetBundle ui_descriptor_set = vgk_create_descriptor_set_bundle_from_spec(&descriptor_pool_bundle, &ui_descriptor_set_description, device);
-
-    Vgk_PipelineSpec pipeline_description = {};
-    pipeline_description.vert_shader_path = "bin/shaders/ui.vert.spv";
-    pipeline_description.frag_shader_path = "bin/shaders/ui.frag.spv";
-
-    pipeline_description.frame_count = frame_list.count;
-
-    Vgk_PipelineLayoutSpec pipeline_layout_description = {};
-    pipeline_layout_description.descriptor_sets[0] = global_descriptor_set.spec;
-    pipeline_layout_description.descriptor_sets[1] = ui_descriptor_set.spec;
-    pipeline_layout_description.descriptor_set_count = 2;
-    pipeline_description.pipeline_layout_spec = pipeline_layout_description;
+    Vgk_DescriptorSetSpec ui_descriptor_set_spec = vgk_make_descriptor_set_spec();
+    vgk_add_descriptor_binding(&ui_descriptor_set_spec, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 1, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT);
+    vgk_add_descriptor_binding(&ui_descriptor_set_spec, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 2, VK_SHADER_STAGE_FRAGMENT_BIT);
+    Vgk_DescriptorSetBundle ui_descriptor_set = vgk_create_descriptor_set_bundle_from_spec(&descriptor_pool_bundle, &ui_descriptor_set_spec, device);
 
     Vgk_VertInputSpec vert_input = vgk_make_vert_input_spec(sizeof(Vertex));
     vgk_add_vert_attribute(&vert_input, VK_FORMAT_R32G32B32_SFLOAT, offsetof(Vertex, pos));
     vgk_add_vert_attribute(&vert_input, VK_FORMAT_R32G32_SFLOAT, offsetof(Vertex, uv));
     vgk_add_vert_attribute(&vert_input, VK_FORMAT_R32G32B32A32_SFLOAT, offsetof(Vertex, color));
     vgk_add_vert_attribute(&vert_input, VK_FORMAT_R32_UINT, offsetof(Vertex, tex_index));
-    pipeline_description.vert_input_spec = vert_input;
 
-    pipeline_description.viewport = vgk_get_viewport_for_extent(swapchain_bundle.extent);
-    pipeline_description.scissor = vgk_get_scissor_for_extent(swapchain_bundle.extent);
+    Vgk_PipelineSpec pipeline_spec = vgk_make_pipeline_spec();
+    vgk_set_vert_shader_path(&pipeline_spec, "bin/shaders/ui.vert.spv");
+    vgk_set_frag_shader_path(&pipeline_spec, "bin/shaders/ui.frag.spv");
+    vgk_set_frame_count(&pipeline_spec, frame_list.count);
+    vgk_add_descriptor_set(&pipeline_spec, &ui_descriptor_set_spec);
+    vgk_set_vert_input(&pipeline_spec, &vert_input);
+    vgk_set_viewport(&pipeline_spec, vgk_get_viewport_for_extent(swapchain_bundle.extent));
+    vgk_set_scissor(&pipeline_spec, vgk_get_scissor_for_extent(swapchain_bundle.extent));
+    vgk_set_rasterization_state(&pipeline_spec, VK_POLYGON_MODE_FILL, 1.0f, VK_CULL_MODE_NONE, VK_FRONT_FACE_COUNTER_CLOCKWISE);
+    vgk_set_sample_count(&pipeline_spec, VK_SAMPLE_COUNT_1_BIT);
+    vgk_set_enable_blending(&pipeline_spec, true);
+    vgk_set_render_pass(&pipeline_spec, render_pass_bundle.render_pass);
 
-    pipeline_description.polygon_mode = VK_POLYGON_MODE_FILL;
-    pipeline_description.line_width = 1.0f;
-    pipeline_description.cull_mode = VK_CULL_MODE_NONE;
-    pipeline_description.front_face = VK_FRONT_FACE_COUNTER_CLOCKWISE;
-
-    pipeline_description.rasterization_samples = VK_SAMPLE_COUNT_1_BIT;
-
-    pipeline_description.enable_blending = true;
-    pipeline_description.enable_depth_testing = false;
-
-    pipeline_description.render_pass = render_pass_bundle.render_pass;
-
-    Vgk_PipelineBundle pipeline_bundle = vgk_create_pipeline_from_spec(&pipeline_description, device);
+    Vgk_PipelineBundle pipeline_bundle = vgk_create_pipeline_from_spec(&pipeline_spec, device);
 
     while (!glfwWindowShouldClose(window))
     {

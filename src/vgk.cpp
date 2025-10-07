@@ -917,6 +917,95 @@ void vgk_add_vert_attribute(Vgk_VertInputSpec *spec, VkFormat format, size_t off
     spec->attributes[spec->attribute_count++] = attrib;
 }
 
+Vgk_DescriptorSetSpec vgk_make_descriptor_set_spec()
+{
+    Vgk_DescriptorSetSpec spec = {};
+    return spec;
+}
+
+void vgk_add_descriptor_binding(Vgk_DescriptorSetSpec *spec, VkDescriptorType descriptor_type, u32 descriptor_count, VkShaderStageFlags stage_flags)
+{
+    bassert(spec->binding_count < MAX_DESCRIPTOR_BINDINGS);
+    Vgk_DescriptorBinding binding = {};
+    binding.descriptor_type = descriptor_type;
+    binding.descriptor_count = descriptor_count;
+    binding.stage_flags = stage_flags;
+    spec->bindings[spec->binding_count++] = binding;
+}
+
+Vgk_PipelineSpec vgk_make_pipeline_spec()
+{
+    Vgk_PipelineSpec spec = {};
+    return spec;
+}
+
+void vgk_set_vert_shader_path(Vgk_PipelineSpec *spec, const char *path)
+{
+    spec->vert_shader_path = xstrdup(path);
+}
+
+void vgk_set_frag_shader_path(Vgk_PipelineSpec *spec, const char *path)
+{
+    spec->frag_shader_path = xstrdup(path);
+}
+
+void vgk_set_frame_count(Vgk_PipelineSpec *spec, u32 frame_count)
+{
+    spec->frame_count = frame_count;
+}
+
+void vgk_add_descriptor_set(Vgk_PipelineSpec *spec, const Vgk_DescriptorSetSpec *descriptor_set_spec)
+{
+    Vgk_PipelineLayoutSpec *layout_spec = &spec->pipeline_layout_spec;
+    bassert(layout_spec->descriptor_set_count < MAX_DESCRIPTOR_SETS);
+    layout_spec->descriptor_sets[layout_spec->descriptor_set_count++] = *descriptor_set_spec;
+}
+
+// void vgk_add_push_constant(Vgk_PipelineSpec *spec);
+
+void vgk_set_vert_input(Vgk_PipelineSpec *spec, const Vgk_VertInputSpec *vert_input)
+{
+    spec->vert_input_spec = *vert_input;
+}
+
+void vgk_set_viewport(Vgk_PipelineSpec *spec, VkViewport viewport)
+{
+    spec->viewport = viewport;
+}
+
+void vgk_set_scissor(Vgk_PipelineSpec *spec, VkRect2D scissor)
+{
+    spec->scissor = scissor;
+}
+
+void vgk_set_rasterization_state(Vgk_PipelineSpec *spec, VkPolygonMode polygon_mode, f32 line_width, VkCullModeFlags cull_mode, VkFrontFace front_face)
+{
+    spec->polygon_mode = polygon_mode;
+    spec->line_width = line_width;
+    spec->cull_mode = cull_mode;
+    spec->front_face = front_face;
+}
+
+void vgk_set_sample_count(Vgk_PipelineSpec *spec, VkSampleCountFlagBits sample_count)
+{
+    spec->rasterization_samples = sample_count;
+}
+
+void vgk_set_enable_blending(Vgk_PipelineSpec *spec, bool enable)
+{
+    spec->enable_blending = enable;
+}
+
+void vgk_set_enable_depth_testing(Vgk_PipelineSpec *spec, bool enable)
+{
+    spec->enable_depth_testing = enable;
+}
+
+void vgk_set_render_pass(Vgk_PipelineSpec *spec, VkRenderPass render_pass)
+{
+    spec->render_pass = render_pass;
+}
+
 VkPipelineLayout vgk_create_pipeline_layout_from_spec(const Vgk_PipelineLayoutSpec *spec, VkDevice device)
 {
     VkPipelineLayout pipeline_layout;

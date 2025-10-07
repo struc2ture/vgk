@@ -7,14 +7,15 @@
 * Pipeline creation: unhardcode shader stage composition
 * Pipeline creation: unhardcode blending configuration
 * Enum string helpers
-* Destroy functions: descriptor sets
-* Helpers for creating description structs
+* Testing: utilizing multiple descriptor sets, each with multiple bindings for different types of descriptors.
 
 # DOING
 
 
 # DONE
 
+* Helpers for creating pipeline spec
+* Helpers for creating descriptor sets
 * Helpers for creating vert input description
 * Pipeline creation from description -- only interface
 * Separate descriptor set layout from pipeline bundle
@@ -25,6 +26,8 @@
 * Oct 7
     * Helpers for configuring pipeline description
     * Per-frame resources. E.g. UBO. Or descriptor set per frame?
+    * With the helpers for creating specs, should there be defaults? I think I will need vulkan global state for that. E.g. if no viewport set, set to swapchain extent, etc.
+    * For the vulkan global state, should I store everything in vgk internal context and give out pointers to all user code?
 
 * Use dynamic rendering extension?
 

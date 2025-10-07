@@ -133,7 +133,7 @@ static void *xrealloc(void *data, size_t new_size)
 
 // ======================== STDLIB STRING ========================
 
-static void *xstrdup(const char *str)
+static char *xstrdup(const char *str)
 {
     char *new_str = strdup(str);
     if (!new_str) fatal("strdup failed for %s", str);
