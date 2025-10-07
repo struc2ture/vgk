@@ -5,6 +5,8 @@
 #include <cstdlib>
 #include <cstring>
 
+// ======================== LOGGING ========================
+
 #define fatal(FMT, ...) do { \
     fprintf(stderr, "[FATAL: %s:%d:%s]: " FMT "\n", __FILE__, __LINE__, __func__, ##__VA_ARGS__); \
     abort(); \
@@ -18,18 +20,14 @@
     printf("[TRACE: %s:%d:%s]: " FMT "\n", __FILE__, __LINE__, __func__, ##__VA_ARGS__); \
 } while (0)
 
+// ======================== ASSERTS ========================
+
 #undef assert
 #define assert(cond) do { \
     if (!(cond)) { \
         abort(); \
     } \
 } while (0)
-
-#define bp() __builtin_debugtrap()
-
-#define array_count(ARRAY) (sizeof(ARRAY)/sizeof(ARRAY[0]))
-
-#define noop() do {} while (0)
 
 #define bassert(EXPR) do { \
     if (!(EXPR)) { \
@@ -45,7 +43,13 @@
     } \
 } while (0)
 
-// DYNAMIC LIST -----------------------
+// ======================== UTIL MACROS ========================
+
+#define noop() do {} while (0)
+#define bp() __builtin_debugtrap()
+#define array_count(ARRAY) (sizeof(ARRAY)/sizeof(ARRAY[0]))
+
+// ======================== DYNAMIC LIST ========================
 
 #define list_define_type(NAME, TYPE) \
     typedef struct NAME { \
@@ -104,6 +108,8 @@
         } \
     } while (0)
 
+// ======================== STDLIB HEAP ========================
+
 static void *xmalloc(size_t size)
 {
     void *ptr = malloc(size);
@@ -125,6 +131,8 @@ static void *xrealloc(void *data, size_t new_size)
     return new_data;
 }
 
+// ======================== STDLIB STRING ========================
+
 static void *xstrdup(const char *str)
 {
     char *new_str = strdup(str);
@@ -144,3 +152,21 @@ static char *strf(const char *fmt, ...)
     va_end(args);
     return str;
 }
+
+// ======================== PLATFORM MACROS ========================
+
+#if defined(_WIN32)
+    #define OS_WINDOWS 1
+#elif defined(__APPLE__)
+    #define OS_MAC 1
+#elif defined(__linux__)
+    #define OS_LINUX 1
+#else
+    #error Unknown OS
+#endif
+
+// ======================== SIZE MACROS ========================
+
+#define kilobytes(SIZE) (1024ull * (SIZE))
+#define megabytes(SIZE) (1024ull * kilobytes(SIZE))
+#define gigabytes(SIZE) (1024ull * megabytes(SIZE))

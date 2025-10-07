@@ -741,7 +741,7 @@ Vgk_TextureBundle vgk_load_texture_from_pixels(void *pixels, u32 w, u32 h, VkDev
         if (result != VK_SUCCESS) fatal("Failed to wait idle for queue");
     }
 
-    vgk_destroy_buffer_bundle(&staging_buffer);
+    vgk_destroy_buffer_bundle(&staging_buffer, device);
 
     VkImageView image_view;
     {
@@ -823,6 +823,7 @@ Vgk_DescriptorSetBundle vgk_create_descriptor_set_bundle(Vgk_DescriptorPoolBundl
     bassert(description->binding_count < MAX_DESCRIPTOR_BINDINGS);
 
     Vgk_DescriptorSetBundle descriptor_set_bundle = {};
+    descriptor_set_bundle.description = *description;
     
     VkDescriptorSetLayout descriptor_set_layout;
     {
@@ -830,9 +831,9 @@ Vgk_DescriptorSetBundle vgk_create_descriptor_set_bundle(Vgk_DescriptorPoolBundl
         create_info.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
 
         VkDescriptorSetLayoutBinding bindings[MAX_DESCRIPTOR_BINDINGS] = {};
-        for (u32 i = 0; i < descriptor_binding_count; i++)
+        for (u32 i = 0; i < description->binding_count; i++)
         {
-            const Vgk_DescriptorBinding *binding_ref = &descriptor_bindings[i];
+            const Vgk_DescriptorBinding *binding_ref = &description->bindings[i];
             switch (binding_ref->descriptor_type)
             {
                 case VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER:
@@ -857,18 +858,15 @@ Vgk_DescriptorSetBundle vgk_create_descriptor_set_bundle(Vgk_DescriptorPoolBundl
             bindings[i].descriptorType = binding_ref->descriptor_type;
             bindings[i].descriptorCount = binding_ref->descriptor_count;
             bindings[i].stageFlags = binding_ref->stage_flags;
-
-            descriptor_set_bundle.descriptor_bindings[i] = *binding_ref;
         }
 
         create_info.pBindings = bindings;
-        create_info.bindingCount = descriptor_binding_count;
+        create_info.bindingCount = description->binding_count;
 
         VkResult result = vkCreateDescriptorSetLayout(device, &create_info, NULL, &descriptor_set_layout);
         if (result != VK_SUCCESS) fatal("Failed to create descriptor set layout");
     }
     descriptor_set_bundle.layout = descriptor_set_layout;
-    descriptor_set_bundle.descriptor_binding_count = descriptor_binding_count;
 
     VkDescriptorSet descriptor_set;
     {
@@ -893,16 +891,10 @@ Vgk_PipelineBundle vgk_create_pipeline_from_description(const Vgk_PipelineDescri
 
     VkPipelineLayout pipeline_layout;
     {
-        VkDescriptorSetLayout descriptor_set_layouts[MAX_DESCRIPTOR_SETS] = {};
-        for (u32 i = 0; i < description->descriptor_set_count; i++)
-        {
-            descriptor_set_layouts[i] = description->descriptor_sets[i].layout;
-        }
-
         VkPipelineLayoutCreateInfo create_info = {};
         create_info.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
         create_info.setLayoutCount = description->descriptor_set_count;
-        create_info.pSetLayouts = descriptor_set_layouts;
+        create_info.pSetLayouts = description->descriptor_set_layouts;
 
         VkResult result = vkCreatePipelineLayout(device, &create_info, NULL, &pipeline_layout);
         if (result != VK_SUCCESS) fatal("Failed to create pipeline layout");
@@ -926,13 +918,13 @@ Vgk_PipelineBundle vgk_create_pipeline_from_description(const Vgk_PipelineDescri
 
         VkVertexInputBindingDescription vertex_input_binding_description = {};
         vertex_input_binding_description.binding = 0;
-        vertex_input_binding_description.stride = description->vert_stride;
+        vertex_input_binding_description.stride = description->vert_input_description.stride;
         vertex_input_binding_description.inputRate = VK_VERTEX_INPUT_RATE_VERTEX;
 
         VkVertexInputAttributeDescription vert_attr_desc[MAX_VERT_ATTRIBUTES];
-        for (u32 i = 0; i < description->vert_attribute_count; i++)
+        for (u32 i = 0; i < description->vert_input_description.attribute_count; i++)
         {
-            const Vgk_VertAttributeDescription *attr_ref = &description->vert_attributes[i];
+            const Vgk_VertAttributeDescription *attr_ref = &description->vert_input_description.attributes[i];
             vert_attr_desc[i].binding = i;
             vert_attr_desc[i].location = i;
             vert_attr_desc[i].format = attr_ref->format;
@@ -943,7 +935,7 @@ Vgk_PipelineBundle vgk_create_pipeline_from_description(const Vgk_PipelineDescri
         vertex_input_state.sType = VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO;
         vertex_input_state.vertexBindingDescriptionCount = 1;
         vertex_input_state.pVertexBindingDescriptions = &vertex_input_binding_description;
-        vertex_input_state.vertexAttributeDescriptionCount = description->vert_attribute_count;
+        vertex_input_state.vertexAttributeDescriptionCount = description->vert_input_description.attribute_count;
         vertex_input_state.pVertexAttributeDescriptions = vert_attr_desc;
 
         VkPipelineInputAssemblyStateCreateInfo input_assembly_state = {};

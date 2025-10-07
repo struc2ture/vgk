@@ -136,7 +136,8 @@ struct Vgk_PipelineDescription
 
     u32 frame_count;
 
-    Vgk_DescriptorSetDescription descriptor_sets[MAX_DESCRIPTOR_SETS];
+    Vgk_DescriptorSetDescription descriptor_set_descriptions[MAX_DESCRIPTOR_SETS];
+    VkDescriptorSetLayout descriptor_set_layouts[MAX_DESCRIPTOR_SETS]; // TODO: Don't keep this
     u32 descriptor_set_count;
 
     Vgk_VertInputDescription vert_input_description;

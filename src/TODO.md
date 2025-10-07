@@ -4,17 +4,19 @@
     - image + memory
     - parallel to buffer + memory
 * Function for copying image from staging buffer to device-local image
-* Separate descriptor set layout from pipeline bundle
 * Pipeline creation: unhardcode shader stage composition
 * Pipeline creation: unhardcode blending configuration
+* Enum string helpers
+* Destroy functions: descriptor sets
 
 # DOING
 
 * Pipeline creation from description -- only interface
+* Separate descriptor set layout from pipeline bundle
 
 # DONE
 
-* Destroy functions
+* Destroy functions: basic
 
 # MISC
 

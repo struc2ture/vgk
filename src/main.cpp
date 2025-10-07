@@ -11,7 +11,6 @@ struct Vertex
     v2 uv;
     v4 color;
     u32 tex_index;
-
 };
 
 int main()
@@ -56,8 +55,10 @@ int main()
 
     pipeline_description.frame_count = frame_list.count;
 
-    pipeline_description.descriptor_sets[0] = global_descriptor_set;
-    pipeline_description.descriptor_sets[1] = ui_descriptor_set;
+    pipeline_description.descriptor_set_descriptions[0] = global_descriptor_set.description;
+    pipeline_description.descriptor_set_layouts[0] = global_descriptor_set.layout;
+    pipeline_description.descriptor_set_descriptions[1] = ui_descriptor_set.description;
+    pipeline_description.descriptor_set_layouts[1] = ui_descriptor_set.layout;
     pipeline_description.descriptor_set_count = 2;
 
     Vgk_VertInputDescription vert_input_description = {};
