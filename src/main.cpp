@@ -55,11 +55,11 @@ int main()
 
     pipeline_description.frame_count = frame_list.count;
 
-    pipeline_description.descriptor_set_descriptions[0] = global_descriptor_set.description;
-    pipeline_description.descriptor_set_layouts[0] = global_descriptor_set.layout;
-    pipeline_description.descriptor_set_descriptions[1] = ui_descriptor_set.description;
-    pipeline_description.descriptor_set_layouts[1] = ui_descriptor_set.layout;
-    pipeline_description.descriptor_set_count = 2;
+    Vgk_PipelineLayoutDescription pipeline_layout_description = {};
+    pipeline_layout_description.descriptor_sets[0] = global_descriptor_set.description;
+    pipeline_layout_description.descriptor_sets[1] = ui_descriptor_set.description;
+    pipeline_layout_description.descriptor_set_count = 2;
+    pipeline_description.pipeline_layout_description = pipeline_layout_description;
 
     Vgk_VertInputDescription vert_input_description = {};
     vert_input_description.stride = sizeof(Vertex);
@@ -72,6 +72,7 @@ int main()
     vert_input_description.attributes[3].format = VK_FORMAT_R32_UINT;
     vert_input_description.attributes[3].offset = offsetof(Vertex, tex_index);
     vert_input_description.attribute_count = 4;
+    pipeline_description.vert_input_description = vert_input_description;
 
     pipeline_description.viewport = vgk_get_viewport_for_extent(swapchain_bundle.extent);
     pipeline_description.scissor = vgk_get_scissor_for_extent(swapchain_bundle.extent);
@@ -84,6 +85,7 @@ int main()
     pipeline_description.rasterization_samples = VK_SAMPLE_COUNT_1_BIT;
 
     pipeline_description.enable_blending = true;
+    pipeline_description.enable_depth_testing = false;
 
     pipeline_description.render_pass = render_pass_bundle.render_pass;
 

@@ -8,14 +8,15 @@
 * Pipeline creation: unhardcode blending configuration
 * Enum string helpers
 * Destroy functions: descriptor sets
+* Helpers for creating description structs
 
 # DOING
 
-* Pipeline creation from description -- only interface
-* Separate descriptor set layout from pipeline bundle
 
 # DONE
 
+* Pipeline creation from description -- only interface
+* Separate descriptor set layout from pipeline bundle
 * Destroy functions: basic
 
 # MISC
@@ -29,7 +30,7 @@
     
     * LATER: each pipeline "subscribes" to a descriptor set, e.g. global -- all the transforms, etc.
 
-    * LATER: Is there an issue with lifetime of descriptor sets? Specifically them being copied into pipeline description. For now it should be ok, as I won't be recreating description sets. Later, maybe I need some kind of central storage for all these items. OR: maybe just keep the descriptor set description in the pipeline description, not the actual descriptor set/layout VK handles.
+    * ~~LATER: Is there an issue with lifetime of descriptor sets? Specifically them being copied into pipeline description. For now it should be ok, as I won't be recreating description sets. Later, maybe I need some kind of central storage for all these items. OR: maybe just keep the descriptor set description in the pipeline description, not the actual descriptor set/layout VK handles.~~
 
 * Pipeline bundle
     * Shaders -- code -> spv binaries -> spv bytes

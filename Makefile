@@ -4,6 +4,9 @@ LFLAGS  =
 LFLAGS += -L/opt/homebrew/lib -lglfw
 LFLAGS += -L/usr/local/lib -lvulkan
 
+SHADERS = ui.vert ui.frag
+SHADER_SPV_NAMES = $(addsuffix .spv, $(addprefix bin/shaders/, $(SHADERS)))
+
 export VK_ICD_FILENAMES = /usr/local/share/vulkan/icd.d/MoltenVK_icd.json
 export VK_LAYER_PATH = /usr/local/share/vulkan/explicit_layer.d
 export DYLD_LIBRARY_PATH = /usr/local/lib:$$DYLD_LIBRARY_PATH
@@ -11,5 +14,8 @@ export DYLD_LIBRARY_PATH = /usr/local/lib:$$DYLD_LIBRARY_PATH
 run: bin/main
 	lldb bin/main -o r
 
-bin/main: src/main.cpp src/vgk.cpp src/vgk.hpp
+bin/main: src/main.cpp src/vgk.cpp src/vgk.hpp $(SHADER_SPV_NAMES)
 	clang $(CFLAGS) src/main.cpp src/common/common.cpp src/vgk.cpp -o bin/main $(LFLAGS)
+
+bin/shaders/%.spv: src/shaders/%
+	glslc $< -o $@

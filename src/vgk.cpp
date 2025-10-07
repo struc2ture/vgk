@@ -2,6 +2,7 @@
 
 #include <vulkan/vulkan.h>
 #include <GLFW/glfw3.h>
+#include <vulkan/vulkan_core.h>
 
 #include "common/common.hpp"
 
@@ -818,13 +819,35 @@ Vgk_DescriptorPoolBundle vgk_create_descriptor_pool_bundle(VkDevice device)
     return bundle;
 }
 
-Vgk_DescriptorSetBundle vgk_create_descriptor_set_bundle(Vgk_DescriptorPoolBundle *descriptor_pool_bundle, const Vgk_DescriptorSetDescription *description, VkDevice device)
+void vgk_check_descriptor_pool_availability(Vgk_DescriptorPoolBundle *descriptor_pool_bundle, const Vgk_DescriptorSetDescription *description)
 {
-    bassert(description->binding_count < MAX_DESCRIPTOR_BINDINGS);
+    for (u32 i = 0; i < description->binding_count; i++)
+    {
+        const Vgk_DescriptorBinding *binding_ref = &description->bindings[i];
+        switch (binding_ref->descriptor_type)
+        {
+            case VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER:
+            {
+                u32 new_count = descriptor_pool_bundle->uniform_buffer_count + binding_ref->descriptor_count;
+                bassert(new_count < descriptor_pool_bundle->max_uniform_buffers);
+                descriptor_pool_bundle->uniform_buffer_count = new_count;
+            }
+            break;
 
-    Vgk_DescriptorSetBundle descriptor_set_bundle = {};
-    descriptor_set_bundle.description = *description;
-    
+            case VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER:
+            {
+                u32 new_count = descriptor_pool_bundle->image_sampler_count + binding_ref->descriptor_count;
+                bassert(new_count < descriptor_pool_bundle->max_image_samplers);
+                descriptor_pool_bundle->image_sampler_count = new_count;
+            } break;
+
+            default: fatal("Descriptor type not implemented");
+        }
+    }
+}
+
+VkDescriptorSetLayout vgk_create_descriptor_set_layout_from_description(const Vgk_DescriptorSetDescription *description, VkDevice device)
+{
     VkDescriptorSetLayout descriptor_set_layout;
     {
         VkDescriptorSetLayoutCreateInfo create_info = {};
@@ -834,26 +857,6 @@ Vgk_DescriptorSetBundle vgk_create_descriptor_set_bundle(Vgk_DescriptorPoolBundl
         for (u32 i = 0; i < description->binding_count; i++)
         {
             const Vgk_DescriptorBinding *binding_ref = &description->bindings[i];
-            switch (binding_ref->descriptor_type)
-            {
-                case VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER:
-                {
-                    u32 new_count = descriptor_pool_bundle->uniform_buffer_count + binding_ref->descriptor_count;
-                    bassert(new_count < descriptor_pool_bundle->max_uniform_buffers);
-                    descriptor_pool_bundle->uniform_buffer_count = new_count;
-                }
-                break;
-
-                case VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER:
-                {
-                    u32 new_count = descriptor_pool_bundle->image_sampler_count + binding_ref->descriptor_count;
-                    bassert(new_count < descriptor_pool_bundle->max_image_samplers);
-                    descriptor_pool_bundle->image_sampler_count = new_count;
-                } break;
-
-                default: fatal("Descriptor type not implemented");
-            }
-
             bindings[i].binding = i;
             bindings[i].descriptorType = binding_ref->descriptor_type;
             bindings[i].descriptorCount = binding_ref->descriptor_count;
@@ -866,7 +869,19 @@ Vgk_DescriptorSetBundle vgk_create_descriptor_set_bundle(Vgk_DescriptorPoolBundl
         VkResult result = vkCreateDescriptorSetLayout(device, &create_info, NULL, &descriptor_set_layout);
         if (result != VK_SUCCESS) fatal("Failed to create descriptor set layout");
     }
-    descriptor_set_bundle.layout = descriptor_set_layout;
+    return descriptor_set_layout;
+}
+
+Vgk_DescriptorSetBundle vgk_create_descriptor_set_bundle(Vgk_DescriptorPoolBundle *descriptor_pool_bundle, const Vgk_DescriptorSetDescription *description, VkDevice device)
+{
+    bassert(description->binding_count < MAX_DESCRIPTOR_BINDINGS);
+
+    Vgk_DescriptorSetBundle descriptor_set_bundle = {};
+    descriptor_set_bundle.description = *description;
+    
+    vgk_check_descriptor_pool_availability(descriptor_pool_bundle, description);
+
+    descriptor_set_bundle.layout = vgk_create_descriptor_set_layout_from_description(description, device);
 
     VkDescriptorSet descriptor_set;
     {
@@ -874,7 +889,7 @@ Vgk_DescriptorSetBundle vgk_create_descriptor_set_bundle(Vgk_DescriptorPoolBundl
         allocate_info.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO;
         allocate_info.descriptorPool = descriptor_pool_bundle->descriptor_pool;
         allocate_info.descriptorSetCount = 1;
-        allocate_info.pSetLayouts = &descriptor_set_layout;
+        allocate_info.pSetLayouts = &descriptor_set_bundle.layout;
 
         VkResult result = vkAllocateDescriptorSets(device, &allocate_info, &descriptor_set);
         if (result != VK_SUCCESS) fatal("Failed to allocate descriptor set");
@@ -884,22 +899,38 @@ Vgk_DescriptorSetBundle vgk_create_descriptor_set_bundle(Vgk_DescriptorPoolBundl
     return descriptor_set_bundle;
 }
 
+VkPipelineLayout vgk_create_pipeline_layout_from_description(const Vgk_PipelineLayoutDescription *description, VkDevice device)
+{
+    VkPipelineLayout pipeline_layout;
+    {
+        VkDescriptorSetLayout descriptor_set_layouts[MAX_DESCRIPTOR_SETS] = {};
+        for (u32 i = 0; i < description->descriptor_set_count; i++)
+        {
+            descriptor_set_layouts[i] = vgk_create_descriptor_set_layout_from_description(&description->descriptor_sets[i], device);
+        }
+        VkPipelineLayoutCreateInfo create_info = {};
+        create_info.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
+        create_info.setLayoutCount = description->descriptor_set_count;
+        create_info.pSetLayouts = descriptor_set_layouts;
+
+        VkResult result = vkCreatePipelineLayout(device, &create_info, NULL, &pipeline_layout);
+        if (result != VK_SUCCESS) fatal("Failed to create pipeline layout");
+
+        for (u32 i = 0; i < description->descriptor_set_count; i++)
+        {
+            vkDestroyDescriptorSetLayout(device, descriptor_set_layouts[i], NULL);
+        }
+    }
+
+    return pipeline_layout;
+}
+
 Vgk_PipelineBundle vgk_create_pipeline_from_description(const Vgk_PipelineDescription *description, VkDevice device)
 {
     Vgk_PipelineBundle pipeline_bundle = {};
     pipeline_bundle.description = *description;
 
-    VkPipelineLayout pipeline_layout;
-    {
-        VkPipelineLayoutCreateInfo create_info = {};
-        create_info.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
-        create_info.setLayoutCount = description->descriptor_set_count;
-        create_info.pSetLayouts = description->descriptor_set_layouts;
-
-        VkResult result = vkCreatePipelineLayout(device, &create_info, NULL, &pipeline_layout);
-        if (result != VK_SUCCESS) fatal("Failed to create pipeline layout");
-    }
-    pipeline_bundle.layout = pipeline_layout;
+    pipeline_bundle.layout = vgk_create_pipeline_layout_from_description(&description->pipeline_layout_description, device);
 
     VkPipeline pipeline;
     {
@@ -925,8 +956,8 @@ Vgk_PipelineBundle vgk_create_pipeline_from_description(const Vgk_PipelineDescri
         for (u32 i = 0; i < description->vert_input_description.attribute_count; i++)
         {
             const Vgk_VertAttributeDescription *attr_ref = &description->vert_input_description.attributes[i];
-            vert_attr_desc[i].binding = i;
             vert_attr_desc[i].location = i;
+            vert_attr_desc[i].binding = 0;
             vert_attr_desc[i].format = attr_ref->format;
             vert_attr_desc[i].offset = attr_ref->offset;
         }
@@ -978,6 +1009,17 @@ Vgk_PipelineBundle vgk_create_pipeline_from_description(const Vgk_PipelineDescri
         color_blend_state.attachmentCount = 1;
         color_blend_state.pAttachments = &color_blend_attachment;
 
+        VkPipelineDepthStencilStateCreateInfo depth_stencil_state = {};
+        depth_stencil_state.sType = VK_STRUCTURE_TYPE_PIPELINE_DEPTH_STENCIL_STATE_CREATE_INFO;
+        if (description->enable_depth_testing)
+        {
+            depth_stencil_state.depthTestEnable = VK_TRUE;
+            depth_stencil_state.depthWriteEnable = VK_TRUE;
+            depth_stencil_state.depthCompareOp = VK_COMPARE_OP_LESS;
+            depth_stencil_state.depthBoundsTestEnable = VK_FALSE;
+            depth_stencil_state.stencilTestEnable = VK_FALSE;
+        }
+
         VkGraphicsPipelineCreateInfo create_info = {};
         create_info.sType = VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO;
         create_info.stageCount = array_count(shader_stages);
@@ -988,7 +1030,8 @@ Vgk_PipelineBundle vgk_create_pipeline_from_description(const Vgk_PipelineDescri
         create_info.pRasterizationState = &rasterization_state;
         create_info.pMultisampleState = &multisample_state;
         create_info.pColorBlendState = &color_blend_state;
-        create_info.layout = pipeline_layout;
+        create_info.pDepthStencilState = &depth_stencil_state;
+        create_info.layout = pipeline_bundle.layout;
         create_info.renderPass = description->render_pass;
         create_info.subpass = 0;
         

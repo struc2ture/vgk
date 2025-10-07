@@ -109,7 +109,6 @@ struct Vgk_DescriptorSetDescription
 struct Vgk_DescriptorSetBundle
 {
     Vgk_DescriptorSetDescription description;
-
     VkDescriptorSetLayout layout;
     VkDescriptorSet descriptor_set;
 };
@@ -127,6 +126,13 @@ struct Vgk_VertInputDescription
     u32 attribute_count;
 };
 
+struct Vgk_PipelineLayoutDescription
+{
+    // TODO: Push constants
+    Vgk_DescriptorSetDescription descriptor_sets[MAX_DESCRIPTOR_SETS];
+    u32 descriptor_set_count;
+};
+
 // ====================================================================
 
 struct Vgk_PipelineDescription
@@ -136,9 +142,7 @@ struct Vgk_PipelineDescription
 
     u32 frame_count;
 
-    Vgk_DescriptorSetDescription descriptor_set_descriptions[MAX_DESCRIPTOR_SETS];
-    VkDescriptorSetLayout descriptor_set_layouts[MAX_DESCRIPTOR_SETS]; // TODO: Don't keep this
-    u32 descriptor_set_count;
+    Vgk_PipelineLayoutDescription pipeline_layout_description;
 
     Vgk_VertInputDescription vert_input_description;
     
@@ -155,6 +159,7 @@ struct Vgk_PipelineDescription
     VkSampleCountFlagBits rasterization_samples;
 
     bool enable_blending;
+    bool enable_depth_testing;
 
     VkRenderPass render_pass;
 };
@@ -185,6 +190,8 @@ Vgk_BufferBundle vgk_create_buffer_bundle(VkDeviceSize size, VkBufferUsageFlags 
 Vgk_BufferBundleList vgk_create_buffer_bundle_list(VkDeviceSize max_size, VkBufferUsageFlags usage, u32 frames_in_flight, VkDevice device, VkPhysicalDevice physical_device);
 Vgk_DescriptorPoolBundle vgk_create_descriptor_pool_bundle(VkDevice device);
 Vgk_DescriptorSetBundle vgk_create_descriptor_set_bundle(Vgk_DescriptorPoolBundle *descriptor_pool_bundle, const Vgk_DescriptorSetDescription *description, VkDevice device);
+void vgk_check_descriptor_pool_availability(Vgk_DescriptorPoolBundle *descriptor_pool_bundle, const Vgk_DescriptorSetDescription *description);
+VkDescriptorSetLayout vgk_create_descriptor_set_layout_from_description(const Vgk_DescriptorSetDescription *description, VkDevice device);
 
 Vgk_PipelineBundle vgk_create_pipeline_from_description(const Vgk_PipelineDescription *description, VkDevice device);
 
