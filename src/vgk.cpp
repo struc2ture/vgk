@@ -819,7 +819,7 @@ Vgk_DescriptorPoolBundle vgk_create_descriptor_pool_bundle(VkDevice device)
     return bundle;
 }
 
-void vgk_check_descriptor_pool_availability(Vgk_DescriptorPoolBundle *descriptor_pool_bundle, const Vgk_DescriptorSetDescription *description)
+void vgk_check_descriptor_pool_availability(Vgk_DescriptorPoolBundle *descriptor_pool_bundle, const Vgk_DescriptorSetSpec *description)
 {
     for (u32 i = 0; i < description->binding_count; i++)
     {
@@ -846,7 +846,7 @@ void vgk_check_descriptor_pool_availability(Vgk_DescriptorPoolBundle *descriptor
     }
 }
 
-VkDescriptorSetLayout vgk_create_descriptor_set_layout_from_description(const Vgk_DescriptorSetDescription *description, VkDevice device)
+VkDescriptorSetLayout vgk_create_descriptor_set_layout_from_spec(const Vgk_DescriptorSetSpec *spec, VkDevice device)
 {
     VkDescriptorSetLayout descriptor_set_layout;
     {
@@ -854,17 +854,17 @@ VkDescriptorSetLayout vgk_create_descriptor_set_layout_from_description(const Vg
         create_info.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
 
         VkDescriptorSetLayoutBinding bindings[MAX_DESCRIPTOR_BINDINGS] = {};
-        for (u32 i = 0; i < description->binding_count; i++)
+        for (u32 i = 0; i < spec->binding_count; i++)
         {
-            const Vgk_DescriptorBinding *binding_ref = &description->bindings[i];
+            const Vgk_DescriptorBinding *binding_spec = &spec->bindings[i];
             bindings[i].binding = i;
-            bindings[i].descriptorType = binding_ref->descriptor_type;
-            bindings[i].descriptorCount = binding_ref->descriptor_count;
-            bindings[i].stageFlags = binding_ref->stage_flags;
+            bindings[i].descriptorType = binding_spec->descriptor_type;
+            bindings[i].descriptorCount = binding_spec->descriptor_count;
+            bindings[i].stageFlags = binding_spec->stage_flags;
         }
 
         create_info.pBindings = bindings;
-        create_info.bindingCount = description->binding_count;
+        create_info.bindingCount = spec->binding_count;
 
         VkResult result = vkCreateDescriptorSetLayout(device, &create_info, NULL, &descriptor_set_layout);
         if (result != VK_SUCCESS) fatal("Failed to create descriptor set layout");
@@ -872,16 +872,16 @@ VkDescriptorSetLayout vgk_create_descriptor_set_layout_from_description(const Vg
     return descriptor_set_layout;
 }
 
-Vgk_DescriptorSetBundle vgk_create_descriptor_set_bundle(Vgk_DescriptorPoolBundle *descriptor_pool_bundle, const Vgk_DescriptorSetDescription *description, VkDevice device)
+Vgk_DescriptorSetBundle vgk_create_descriptor_set_bundle_from_spec(Vgk_DescriptorPoolBundle *descriptor_pool_bundle, const Vgk_DescriptorSetSpec *spec, VkDevice device)
 {
-    bassert(description->binding_count < MAX_DESCRIPTOR_BINDINGS);
+    bassert(spec->binding_count < MAX_DESCRIPTOR_BINDINGS);
 
     Vgk_DescriptorSetBundle descriptor_set_bundle = {};
-    descriptor_set_bundle.description = *description;
+    descriptor_set_bundle.spec = *spec;
     
-    vgk_check_descriptor_pool_availability(descriptor_pool_bundle, description);
+    vgk_check_descriptor_pool_availability(descriptor_pool_bundle, spec);
 
-    descriptor_set_bundle.layout = vgk_create_descriptor_set_layout_from_description(description, device);
+    descriptor_set_bundle.layout = vgk_create_descriptor_set_layout_from_spec(spec, device);
 
     VkDescriptorSet descriptor_set;
     {
@@ -899,24 +899,42 @@ Vgk_DescriptorSetBundle vgk_create_descriptor_set_bundle(Vgk_DescriptorPoolBundl
     return descriptor_set_bundle;
 }
 
-VkPipelineLayout vgk_create_pipeline_layout_from_description(const Vgk_PipelineLayoutDescription *description, VkDevice device)
+Vgk_VertInputSpec vgk_make_vert_input_spec(size_t stride)
+{
+    Vgk_VertInputSpec description = {};
+    description.stride = stride;
+    return description;
+}
+
+void vgk_add_vert_attribute(Vgk_VertInputSpec *spec, VkFormat format, size_t offset)
+{
+    bassert(spec->attribute_count < MAX_VERT_ATTRIBUTES);
+    bassert(offset < spec->stride);
+    // TODO: Validate that offset is actually correct based on format of previous attributes?
+    Vgk_VertAttributeSpec attrib = {};
+    attrib.format = format;
+    attrib.offset = offset;
+    spec->attributes[spec->attribute_count++] = attrib;
+}
+
+VkPipelineLayout vgk_create_pipeline_layout_from_spec(const Vgk_PipelineLayoutSpec *spec, VkDevice device)
 {
     VkPipelineLayout pipeline_layout;
     {
         VkDescriptorSetLayout descriptor_set_layouts[MAX_DESCRIPTOR_SETS] = {};
-        for (u32 i = 0; i < description->descriptor_set_count; i++)
+        for (u32 i = 0; i < spec->descriptor_set_count; i++)
         {
-            descriptor_set_layouts[i] = vgk_create_descriptor_set_layout_from_description(&description->descriptor_sets[i], device);
+            descriptor_set_layouts[i] = vgk_create_descriptor_set_layout_from_spec(&spec->descriptor_sets[i], device);
         }
         VkPipelineLayoutCreateInfo create_info = {};
         create_info.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
-        create_info.setLayoutCount = description->descriptor_set_count;
+        create_info.setLayoutCount = spec->descriptor_set_count;
         create_info.pSetLayouts = descriptor_set_layouts;
 
         VkResult result = vkCreatePipelineLayout(device, &create_info, NULL, &pipeline_layout);
         if (result != VK_SUCCESS) fatal("Failed to create pipeline layout");
 
-        for (u32 i = 0; i < description->descriptor_set_count; i++)
+        for (u32 i = 0; i < spec->descriptor_set_count; i++)
         {
             vkDestroyDescriptorSetLayout(device, descriptor_set_layouts[i], NULL);
         }
@@ -925,17 +943,17 @@ VkPipelineLayout vgk_create_pipeline_layout_from_description(const Vgk_PipelineL
     return pipeline_layout;
 }
 
-Vgk_PipelineBundle vgk_create_pipeline_from_description(const Vgk_PipelineDescription *description, VkDevice device)
+Vgk_PipelineBundle vgk_create_pipeline_from_spec(const Vgk_PipelineSpec *spec, VkDevice device)
 {
     Vgk_PipelineBundle pipeline_bundle = {};
-    pipeline_bundle.description = *description;
+    pipeline_bundle.spec = *spec;
 
-    pipeline_bundle.layout = vgk_create_pipeline_layout_from_description(&description->pipeline_layout_description, device);
+    pipeline_bundle.layout = vgk_create_pipeline_layout_from_spec(&spec->pipeline_layout_spec, device);
 
     VkPipeline pipeline;
     {
-        VkShaderModule vert_shader_module = vgk_create_shader_module(description->vert_shader_path, device);
-        VkShaderModule frag_shader_module = vgk_create_shader_module(description->frag_shader_path, device);
+        VkShaderModule vert_shader_module = vgk_create_shader_module(spec->vert_shader_path, device);
+        VkShaderModule frag_shader_module = vgk_create_shader_module(spec->frag_shader_path, device);
 
         VkPipelineShaderStageCreateInfo shader_stages[2] = {};
         shader_stages[0].sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
@@ -949,13 +967,13 @@ Vgk_PipelineBundle vgk_create_pipeline_from_description(const Vgk_PipelineDescri
 
         VkVertexInputBindingDescription vertex_input_binding_description = {};
         vertex_input_binding_description.binding = 0;
-        vertex_input_binding_description.stride = description->vert_input_description.stride;
+        vertex_input_binding_description.stride = spec->vert_input_spec.stride;
         vertex_input_binding_description.inputRate = VK_VERTEX_INPUT_RATE_VERTEX;
 
         VkVertexInputAttributeDescription vert_attr_desc[MAX_VERT_ATTRIBUTES];
-        for (u32 i = 0; i < description->vert_input_description.attribute_count; i++)
+        for (u32 i = 0; i < spec->vert_input_spec.attribute_count; i++)
         {
-            const Vgk_VertAttributeDescription *attr_ref = &description->vert_input_description.attributes[i];
+            const Vgk_VertAttributeSpec *attr_ref = &spec->vert_input_spec.attributes[i];
             vert_attr_desc[i].location = i;
             vert_attr_desc[i].binding = 0;
             vert_attr_desc[i].format = attr_ref->format;
@@ -966,7 +984,7 @@ Vgk_PipelineBundle vgk_create_pipeline_from_description(const Vgk_PipelineDescri
         vertex_input_state.sType = VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO;
         vertex_input_state.vertexBindingDescriptionCount = 1;
         vertex_input_state.pVertexBindingDescriptions = &vertex_input_binding_description;
-        vertex_input_state.vertexAttributeDescriptionCount = description->vert_input_description.attribute_count;
+        vertex_input_state.vertexAttributeDescriptionCount = spec->vert_input_spec.attribute_count;
         vertex_input_state.pVertexAttributeDescriptions = vert_attr_desc;
 
         VkPipelineInputAssemblyStateCreateInfo input_assembly_state = {};
@@ -976,25 +994,25 @@ Vgk_PipelineBundle vgk_create_pipeline_from_description(const Vgk_PipelineDescri
         VkPipelineViewportStateCreateInfo viewport_state = {};
         viewport_state.sType = VK_STRUCTURE_TYPE_PIPELINE_VIEWPORT_STATE_CREATE_INFO;
         viewport_state.viewportCount = 1;
-        viewport_state.pViewports = &description->viewport;
+        viewport_state.pViewports = &spec->viewport;
         viewport_state.scissorCount = 1;
-        viewport_state.pScissors = &description->scissor;
+        viewport_state.pScissors = &spec->scissor;
 
         VkPipelineRasterizationStateCreateInfo rasterization_state = {};
         rasterization_state.sType = VK_STRUCTURE_TYPE_PIPELINE_RASTERIZATION_STATE_CREATE_INFO;
-        rasterization_state.polygonMode = description->polygon_mode;
+        rasterization_state.polygonMode = spec->polygon_mode;
         rasterization_state.lineWidth = 1.0f;
-        rasterization_state.cullMode = description->cull_mode;
-        rasterization_state.frontFace = description->front_face;
+        rasterization_state.cullMode = spec->cull_mode;
+        rasterization_state.frontFace = spec->front_face;
 
         VkPipelineMultisampleStateCreateInfo multisample_state = {};
         multisample_state.sType = VK_STRUCTURE_TYPE_PIPELINE_MULTISAMPLE_STATE_CREATE_INFO;
-        multisample_state.rasterizationSamples = description->rasterization_samples;
+        multisample_state.rasterizationSamples = spec->rasterization_samples;
 
         VkPipelineColorBlendAttachmentState color_blend_attachment = {};
         color_blend_attachment.colorWriteMask = (VK_COLOR_COMPONENT_R_BIT | VK_COLOR_COMPONENT_G_BIT | VK_COLOR_COMPONENT_B_BIT | VK_COLOR_COMPONENT_A_BIT);
-        color_blend_attachment.blendEnable = description->enable_blending ? VK_TRUE : VK_FALSE;
-        if (description->enable_blending)
+        color_blend_attachment.blendEnable = spec->enable_blending ? VK_TRUE : VK_FALSE;
+        if (spec->enable_blending)
         {
             color_blend_attachment.srcColorBlendFactor = VK_BLEND_FACTOR_SRC_ALPHA;
             color_blend_attachment.dstColorBlendFactor = VK_BLEND_FACTOR_ONE_MINUS_SRC_ALPHA;
@@ -1011,7 +1029,7 @@ Vgk_PipelineBundle vgk_create_pipeline_from_description(const Vgk_PipelineDescri
 
         VkPipelineDepthStencilStateCreateInfo depth_stencil_state = {};
         depth_stencil_state.sType = VK_STRUCTURE_TYPE_PIPELINE_DEPTH_STENCIL_STATE_CREATE_INFO;
-        if (description->enable_depth_testing)
+        if (spec->enable_depth_testing)
         {
             depth_stencil_state.depthTestEnable = VK_TRUE;
             depth_stencil_state.depthWriteEnable = VK_TRUE;
@@ -1032,7 +1050,7 @@ Vgk_PipelineBundle vgk_create_pipeline_from_description(const Vgk_PipelineDescri
         create_info.pColorBlendState = &color_blend_state;
         create_info.pDepthStencilState = &depth_stencil_state;
         create_info.layout = pipeline_bundle.layout;
-        create_info.renderPass = description->render_pass;
+        create_info.renderPass = spec->render_pass;
         create_info.subpass = 0;
         
         VkResult result = vkCreateGraphicsPipelines(device, VK_NULL_HANDLE, 1, &create_info, NULL, &pipeline);

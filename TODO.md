@@ -15,11 +15,18 @@
 
 # DONE
 
+* Helpers for creating vert input description
 * Pipeline creation from description -- only interface
 * Separate descriptor set layout from pipeline bundle
 * Destroy functions: basic
 
 # MISC
+
+* Oct 7
+    * Helpers for configuring pipeline description
+    * Per-frame resources. E.g. UBO. Or descriptor set per frame?
+
+* Use dynamic rendering extension?
 
 * Rename "Description" to something else?
 
